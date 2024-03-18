@@ -2,6 +2,9 @@ import pandas as pd
 import numpy as np
 import multiprocessing
 
+### TO RUN TOP 10 MOVIES, UNCOMMENT IF NAME == MAIN AND COMMENT RUNSIM. CHANGE USER IN MAIN###
+### TO RUN DIFFERENT METHODS, COMMENT IF NAME == MAIN AND UNCOMMENT RUNSIM. CHANGE USER BY PARAM ###
+
 def similarityPearson(df1, df2) :
 
     movie_set1 = set(df1['movieId'].tolist())
@@ -36,52 +39,45 @@ def prediction(df, df1, movieId) :
     if movieId in df1['movieId'].tolist():
         return df.loc[df['movieId'] == movieId, 'rating'].values[0]
     
-    media_ratings1 = df1['rating'].mean()
+    avg_ratings1 = df1['rating'].mean()
     num = 0
     similaritySum = 0
     i = 0
 
-    for _, riga in df_elem.iterrows():
-        df2 = df[df['userId'] == riga['userId']]
+    for _, row in df_elem.iterrows():
+        df2 = df[df['userId'] == row['userId']]
         sim = similarityPearson(df1, df2)
         if sim>0 and i<40:
-            media_ratings2 = df2['rating'].mean()
-            num = num + (sim * (riga['rating'] - media_ratings2))
+            avg_ratings2 = df2['rating'].mean()
+            num = num + (sim * (row['rating'] - avg_ratings2))
             similaritySum = similaritySum + sim
         elif i >= 40:
             break
 
     if(similaritySum != 0):
-        prediction = media_ratings1 + (num/similaritySum)
+        prediction = avg_ratings1 + (num/similaritySum)
     else:
-        prediction = media_ratings1
+        prediction = avg_ratings1
     return prediction
 
 def checkSimilarity(userId) :
     df = pd.read_csv('ml-latest-small/ratings.csv')
     user1 = df[df['userId'] == userId]
     df = df.drop(df[df['userId'] == userId].index)
-    prima_riga = df.iloc[0]
-    userIndex = prima_riga['userId']
-    nuove_righe = []
+    first_line = df.iloc[0]
+    userIndex = first_line['userId']
+    new_rows = []
     top_users = []
-    for _, riga in df.iterrows():
+    for _, row in df.iterrows():
         print(userIndex)
-        if riga['userId'] == userIndex:
-            nuove_righe.append(riga)
+        if row['userId'] == userIndex:
+            new_rows.append(row)
         else :
-            user2 = pd.DataFrame(nuove_righe)
+            user2 = pd.DataFrame(new_rows)
             similarity = similarityPearson(user1, user2)
-            if len(top_users) < 10:
-                top_users.append((userIndex, similarity))
-            else:
-                val_min = min(top_users, key=lambda x: x[1])[1]
-                if(val_min < similarity):
-                    indice_minimo = top_users.index((min(top_users, key=lambda x: x[1])))
-                    top_users[indice_minimo] = (userIndex, similarity)
-
-            userIndex = riga['userId']
-            nuove_righe = [riga]
+            top_users.append((userIndex, similarity))
+            userIndex = row['userId']
+            new_rows = [row]
 
     return top_users
     
@@ -91,10 +87,10 @@ def checkPrediction(userId) :
     user1 = df[df['userId'] == userId]
     setTot = set(df['movieId'].tolist())
     setUser1 = set(user1['movieId'].tolist()) 
-    risultato = setTot - setUser1
+    result = setTot - setUser1
 
     preds = []
-    for movie in risultato :
+    for movie in result :
         pred = prediction(df, user1, movie)
         preds.append(pred)
 
@@ -117,16 +113,16 @@ def checkPredictionPar(userId):
     user1 = df[df['userId'] == userId]
     setTot = set(df['movieId'].tolist())
     setUser1 = set(user1['movieId'].tolist()) 
-    risultato = setTot - setUser1
+    result = setTot - setUser1
 
-    chunk_size = len(risultato) // multiprocessing.cpu_count()
-    additional = len(risultato) % multiprocessing.cpu_count()
-    chunks = [list(risultato)[i:i + chunk_size] for i in range(0, len(risultato), chunk_size)]
+    chunk_size = len(result) // multiprocessing.cpu_count()
+    additional = len(result) % multiprocessing.cpu_count()
+    chunks = [list(result)[i:i + chunk_size] for i in range(0, len(result), chunk_size)]
 
     for i in range(additional):
         index = chunk_size * len(chunks) + i
-        if index < len(risultato):
-            chunks[i % len(chunks)].append(list(risultato)[index])
+        if index < len(result):
+            chunks[i % len(chunks)].append(list(result)[index])
 
     pool = multiprocessing.Pool()
     results = pool.map(calculate_prediction, [(df, user1, movie) for movie in chunks])
@@ -134,8 +130,8 @@ def checkPredictionPar(userId):
     pool.join()
 
     merged_results = []
-    for result in results:
-        merged_results.extend(result)
+    for res in results:
+        merged_results.extend(res)
 
     merged_results.sort(key=lambda x: x[1], reverse=True)
     return [movie for movie, pred in merged_results[:10]]
@@ -143,7 +139,7 @@ def checkPredictionPar(userId):
 def main():
     userId = 1
     top_predictions = checkPredictionPar(userId)
-    print("Top 10 predizioni per l'utente con ID", userId)
+    print("Top 10 predictions for user with ID", userId)
     for i, movie_id in enumerate(top_predictions, 1):
         print(f"{i}. Movie ID: {movie_id}")
 
@@ -184,16 +180,16 @@ def runSim(userId1, userId2):
     df = pd.read_csv('ml-latest-small/ratings.csv')
     setUser1 = set(zip(df.loc[df['userId'] == userId1, 'movieId'], df.loc[df['userId'] == userId1, 'rating']))
     setUser2 = set(zip(df.loc[df['userId'] == userId2, 'movieId'], df.loc[df['userId'] == userId2, 'rating']))
-    print(jaccardCustom(setUser1, setUser2))
+    print(round(jaccardCustom(setUser1, setUser2), 2))
 
     df1 = df[df['userId'] == userId1]
     df2 = df[df['userId'] == userId2]
-    print(similarityPearson(df1, df2))
+    print(round(similarityPearson(df1, df2), 2))
 
-    print(jaccardReal(userId1, userId2))
+    print(round(jaccardReal(userId1, userId2), 2))
 
-runSim(1, 21)
-
+# Params: user id, movie id
+runSim(13, 50)
 # if __name__ == "__main__":
 #     main()
 
