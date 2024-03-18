@@ -38,6 +38,7 @@ def prediction(df, df1, movieId) :
 
     df_elem = df[df['movieId'] == movieId]
     if movieId in df1['movieId'].tolist():
+        print('qua')
         return df.loc[df['movieId'] == movieId, 'rating'].values[0]
     
     avg_ratings1 = df1['rating'].mean()
@@ -62,18 +63,42 @@ def prediction(df, df1, movieId) :
     return prediction
 
 
+def countDisagreements(group, movie):
+    df = pd.read_csv('ml-latest-small/ratings.csv')
+    group_size = len(group)
+    sum_ratings = 0
+    sum_tot = 0
+    ratings = {}
+    disagreements_dict = {}
+    for member in group:
+        user = df[df['userId'] == member]
+        rating = prediction(df, user, movie)
+        ratings[member] = rating
+        sum_ratings += (1/group_size) * rating
+
+    for user in group:
+        diff = abs(ratings[user] - sum_ratings)
+        disagreements_dict[user] = diff
+
+    return (ratings, disagreements_dict)
+
 def weightedAverageMethod(group, movie):
     
-    df = pd.read_csv('ml-latest-small/ratings.csv')
-    ratings = set()
+    elem = countDisagreements(group, movie)
+    dis_dict = elem[1]
+    ratings = elem[0]
+    weighted_sum = 0
+    sum_dis = 0
     for user in group:
-        user = df[df['userId'] == user]
-        rating = prediction(df, user, movie)
-        print(rating)
-        ratings.add(round(rating,2))
-    ratings_sum = sum(ratings)
-    pred = ratings_sum / len(ratings)
-    return round(pred,2)
+        rating = ratings[user]
+        dis = dis_dict[user]
+        weighted_sum += dis*rating
+        sum_dis += dis
+
+    if sum_dis == 0:
+        return round(sum(ratings.values())/len(group), 2)
+    else:
+        return round(weighted_sum/sum_dis,2)
 
 def averageMethod(group, movie):
     df = pd.read_csv('ml-latest-small/ratings.csv')
@@ -81,7 +106,6 @@ def averageMethod(group, movie):
     for user in group:
         user = df[df['userId'] == user]
         rating = prediction(df, user, movie)
-        print(rating)
         ratings.append(round(rating,2))
     ratings_sum = sum(ratings)
     pred = ratings_sum / len(ratings)
@@ -93,6 +117,7 @@ def leastMethod(group, movie):
     for user in group:
         user = df[df['userId'] == user]
         rating = prediction(df, user, movie)
+        print(rating)
         ratings.append(round(rating,2))
     return round(min(ratings), 2)
 
@@ -164,12 +189,13 @@ def main():
 
 
 def runMethods(group, movie):
-    print(averageMethod(group, movie))
-    print(leastMethod(group, movie))
+    # print(averageMethod(group, movie))
+    # print(leastMethod(group, movie))
     print(weightedAverageMethod(group, movie))
+    print(countDisagreements(group, movie))
 
 # Params: group, movie id
-runMethods([1, 9, 38], 223)
+runMethods([1, 18, 23], 10)
 
 # if __name__ == "__main__":
 #     main()
