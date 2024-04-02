@@ -3,78 +3,30 @@ import pandas as pd
 import multiprocessing
 from functools import reduce
 
+from main import getTopKMovies, getTopKUsers, prediction, similarityPearson
 ### TO RUN TOP 10 MOVIES, UNCOMMENT IF NAME == MAIN AND COMMENT RUNMETHODS. CHANGE GROUP IN MAIN###
 ### TO RUN DIFFERENT METHODS, COMMENT IF NAME == MAIN AND UNCOMMENT RUNMETHODS. CHANGE GROUP BY PARAM ###
-
-def similarityPearson(df1, df2) :
-
-    movie_set1 = set(df1['movieId'].tolist())
-    movie_set2 = set(df2['movieId'].tolist())
-    movie_intersection = movie_set1.intersection(movie_set2)
-    media_ratings1 = df1['rating'].mean()
-    media_ratings2 = df2['rating'].mean()
-    numerator = 0
-    denominator_sum1 = 0
-    denominator_sum2 = 0
-
-    for movie in movie_intersection :
-        rating1 = df1.loc[df1['movieId'] == movie, 'rating'].values[0]
-        rating2 = df2.loc[df2['movieId'] == movie, 'rating'].values[0]
-        firstElem = rating1 - media_ratings1
-        secondElem = rating2 - media_ratings2
-        numerator = numerator + (firstElem * secondElem)
-        denominator_sum1 = denominator_sum1 + (firstElem ** 2)
-        denominator_sum2 = denominator_sum2 + (secondElem ** 2)
-
-    denominator = np.sqrt(denominator_sum1) * np.sqrt(denominator_sum2)
-    if denominator == 0 :
-        return 0
-    else:
-        similarity = numerator/denominator
-        return similarity
-
-
-def prediction(df, df1, movieId) :
-
-    df_elem = df[df['movieId'] == movieId]
-    if movieId in df1['movieId'].tolist():
-        print('qua')
-        return df.loc[df['movieId'] == movieId, 'rating'].values[0]
-    
-    avg_ratings1 = df1['rating'].mean()
-    num = 0
-    similaritySum = 0
-    i = 0
-
-    for _, row in df_elem.iterrows(): 
-        df2 = df[df['userId'] == row['userId']]
-        sim = similarityPearson(df1, df2)
-        if sim>0 and i<40:
-            avg_ratings2 = df2['rating'].mean()
-            num = num + (sim * (row['rating'] - avg_ratings2))
-            similaritySum = similaritySum + sim
-        elif i >= 40:
-            break
-
-    if(similaritySum != 0):
-        prediction = avg_ratings1 + (num/similaritySum)
-    else:
-        prediction = avg_ratings1
-    return prediction
-
-
-def countDisagreements(group, movie):
-    df = pd.read_csv('ml-latest-small/ratings.csv')
+  
+def countDisagreements(df, group, movie, pred_dict, n_dict):
+    # df = pd.read_csv('ml-latest-small/ratings.csv')
     group_size = len(group)
     sum_ratings = 0
     sum_tot = 0
     ratings = {}
     disagreements_dict = {}
     for member in group:
-        user = df[df['userId'] == member]
-        rating = prediction(df, user, movie)
-        ratings[member] = rating
-        sum_ratings += (1/group_size) * rating
+        movie_pred = pred_dict[member].get(movie, 0)
+        if movie_pred == 0:
+            user = df[df['userId'] == member]
+            neighbor = n_dict[member]
+            movie_pred = prediction(df, user, movie, neighbor[movie])
+            # ratings[member] = movie_pred
+            # sum_ratings += (1/group_size) * movie_pred
+        
+        ratings[member] = movie_pred
+        sum_ratings += (1/group_size) * movie_pred
+
+
 
     for user in group:
         diff = abs(ratings[user] - sum_ratings)
@@ -82,9 +34,9 @@ def countDisagreements(group, movie):
 
     return (ratings, disagreements_dict)
 
-def weightedAverageMethod(group, movie):
+def weightedAverageMethod(df, group, movie, pred_dict, n_dict):
     
-    elem = countDisagreements(group, movie)
+    elem = countDisagreements(df, group, movie, pred_dict, n_dict)
     dis_dict = elem[1]
     ratings = elem[0]
     weighted_sum = 0
@@ -104,8 +56,9 @@ def averageMethod(group, movie):
     df = pd.read_csv('ml-latest-small/ratings.csv')
     ratings = []
     for user in group:
-        user = df[df['userId'] == user]
-        rating = prediction(df, user, movie)
+        u = df[df['userId'] == user]
+        sim_dict = getTopKUsers(user, 40)
+        rating = prediction(df, u, movie, sim_dict)
         ratings.append(round(rating,2))
     ratings_sum = sum(ratings)
     pred = ratings_sum / len(ratings)
@@ -115,89 +68,101 @@ def leastMethod(group, movie):
     df = pd.read_csv('ml-latest-small/ratings.csv')
     ratings = []
     for user in group:
-        user = df[df['userId'] == user]
-        rating = prediction(df, user, movie)
+        u = df[df['userId'] == user]
+        sim_dict = getTopKUsers(user, 40)
+        rating = prediction(df, u, movie, sim_dict)
         print(rating)
         ratings.append(round(rating,2))
     return round(min(ratings), 2)
 
-def avgAndLeastMethod(group, movie):
-    df = pd.read_csv('ml-latest-small/ratings.csv')
+def avgAndLeastMethod(df, group, movie, pred_dict, n_dict):
     ratings = []
     for member in group:
-        user = df[df['userId'] == member]
-        rating = prediction(df, user, movie)
-        ratings.append(round(rating,2))
+        movie_pred = pred_dict[member].get(movie, 0)
+        if movie_pred == 0:
+            user = df[df['userId'] == member]
+            neighbor = n_dict[member]
+            movie_pred = prediction(df, user, movie, neighbor[movie])
+        ratings.append(round(movie_pred,2))
     ratings_sum = sum(ratings)
     least = min(ratings)
     avg = ratings_sum / len(ratings)
     return (round(avg,2), round(least, 2))
 
+def getNeighborsPerMovie(movies, n_dict, topUsers, df, k):
 
-def calculate_prediction(args):
-    group, movies = args
-    predictionsAvg = []
-    predictionsLeast = []
-    for movie in movies:
-        print(movie)
-        pred = avgAndLeastMethod(group, movie)
-        predictionsLeast.append((movie, pred[1]))
-        predictionsAvg.append((movie, pred[0]))
-    return [predictionsLeast, predictionsAvg]
+    new_dict = {}
+    for member in n_dict.keys():
+        neighbor = {}
+        for movie in movies:
+            member_dict = n_dict[member]
+            if movie in member_dict.keys():
+                neighbor[movie] = member_dict[movie]
+            else:
+                i=0
+                sim_dict = {}
+                for id, sim in topUsers:
+                    if ((df['userId'] == id) & (df['movieId'] == movie)).any() and i<k:
+                        sim_dict[id]=sim
+                        i+=1
+                    elif i>k:
+                        break
+                neighbor[movie] = sim_dict
+        new_dict[member] = neighbor
+    return new_dict
 
-def checkPredictionPar(group):
-    df = pd.read_csv('ml-latest-small/ratings.csv')
-    setTot = set(df['movieId'].tolist())
-    member_list = []
+def getTopKMoviesGroup(group, df, k, n) :
+    print("sono qui")
+    # df = pd.read_csv('ml-latest-small/ratings.csv')
+
+    movies_list = set()
+    pred_dict = {}
+    n_dict = {}
+
+    movies_member = None
     for member in group:
-        user = df[df['userId'] == member]
-        print('qua')
-        setUser = set(user['movieId'].tolist())
-        member_list.append(setUser)
+        print("for 1")
+        movies_dict = {}
+        movies_member = getTopKMovies(df, member, k, n, similarityPearson)
 
-    interction = reduce(lambda x, y: x.intersection(y), member_list)
-    result = setTot - interction
-    chunk_size = len(result) // multiprocessing.cpu_count()
-    additional = len(result) % multiprocessing.cpu_count()
-    chunks = [list(result)[i:i + chunk_size] for i in range(0, len(result), chunk_size)]
+        for (movie, pred) in movies_member[0]:
+            movies_dict[movie] = pred
 
-    for i in range(additional):
-        index = chunk_size * len(chunks) + i
-        if index < len(result):
-            chunks[i % len(chunks)].append(list(result)[index])
+        pred_dict[member] = movies_dict
+        n_dict[member] = movies_member[1]
+        movies_list.update([x[0] for x in movies_member[0]])
 
-    pool = multiprocessing.Pool()
-    results = pool.map(calculate_prediction, [(group, movie) for movie in chunks])
-    pool.close()
-    pool.join()
+    print("sono qua")
+    predLeast_list = []
+    predAvg_list = []
 
-    avg_results = []
-    least_results = []
-    for res in results:
-        avg_results.extend(res[1])
-        least_results.extend(res[0])
+    neighbors = getNeighborsPerMovie(movies_list, n_dict, movies_member[2], df, n)
 
-    avg_results.sort(key=lambda x: x[1], reverse=True)
-    least_results.sort(key=lambda x: x[1], reverse=True)
+    for movie in movies_list:
+        print(movie)
+        (predLeast, predAvg) = avgAndLeastMethod(df, group, movie, pred_dict, neighbors)
+        predLeast_list.append((movie, predLeast))
+        predAvg_list.append((movie, predAvg))
 
-    return [avg_results[:10], least_results[:10]]
+    predLeast_list.sort(key=lambda x: x[1], reverse=True)
+    predAvg_list.sort(key=lambda x: x[1], reverse=True)
 
-def main():
-    group = [1, 4, 9]
-    top_predictions = checkPredictionPar(group)
-    print(top_predictions)
-
+    return (predLeast_list[:k], predAvg_list[:k])
 
 def runMethods(group, movie):
-    # print(averageMethod(group, movie))
-    # print(leastMethod(group, movie))
+    print(averageMethod(group, movie))
+    print(leastMethod(group, movie))
     print(weightedAverageMethod(group, movie))
     print(countDisagreements(group, movie))
 
 # Params: group, movie id
-runMethods([1, 18, 23], 10)
+# runMethods([1, 18, 23], 10)
 
-# if __name__ == "__main__":
-#     main()
 
+
+# df = pd.read_csv('ml-latest-small/ratings.csv')
+# print(getTopKMoviesGroup([1, 4, 9], df, 10, 40))
+
+
+    
 
