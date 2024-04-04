@@ -202,7 +202,7 @@ def getDisimilarUsers(k, neighbor):
     disimilar_users = [(id, sim) for (id, sim) in neighbor if sim < -0.5]
     return random.sample(disimilar_users, k)
 
-def makeGroup(userId, sim, dis, user_dict, num):
+def makeGroup(userId, sim, dis, user_dict, num, df):
 
     group = [(userId, 1)] + getSimilarUsers(sim, user_dict[userId]) + getDisimilarUsers(dis, user_dict[userId])
     for member in group:
@@ -211,31 +211,22 @@ def makeGroup(userId, sim, dis, user_dict, num):
         
     return (group, user_dict)
 
+# Params: group, number of iterations, k-movies, n-neighbors, dataset
+# Uncomment this to get top k movies for group of three members in n iterations
 
-df = pd.read_csv('ml-latest-small/ratings.csv') 
-user_num =  df['userId'].nunique()
+# df = pd.read_csv('ml-latest-small/ratings.csv') 
+# user_num =  df['userId'].nunique()
+# user_dict = getNeighborsDict(1, df, user_num)
 
-user_dict = getNeighborsDict(1, df, user_num)
-
-(group, n_dict) = makeGroup(1, 2, 0, user_dict, user_num)
-print('GRUPPO 1: ' + str(group))
-print(siaaMethod([elem[0] for elem in group], 3, 10, 40, n_dict, df))
-(group, n_dict) = makeGroup(1, 0, 2, user_dict, user_num)
-print('GRUPPO 2: ' + str(group))
-print(siaaMethod([elem[0] for elem in group], 3, 10, 40, n_dict, df))
-(group, n_dict) = makeGroup(1, 1, 1, user_dict, user_num)
-print('GRUPPO 3: ' + str(group))
-print(siaaMethod([elem[0] for elem in group], 3, 10, 40, n_dict, df))
-
-# (group, n_dict) = makeGroup(1, 0, 2, user_dict, user_num, [1, 236, 44])
+# (group, n_dict) = makeGroup(1, 2, 0, user_dict, user_num, df)
 # print('GRUPPO 1: ' + str(group))
-# print(getKTopMoviesSequential(group, 3, 10, 40, n_dict, df))
-# (group, n_dict) = makeGroup(1, 0, 2, user_dict, user_num, [1, 252, 71])
+# print(siaaMethod([elem[0] for elem in group], 3, 10, 40, n_dict, df))
+# (group, n_dict) = makeGroup(1, 0, 2, user_dict, user_num, df)
 # print('GRUPPO 2: ' + str(group))
-# print(getKTopMoviesSequential(group, 3, 10, 40, n_dict, df))
-# (group, n_dict) = makeGroup(1, 1, 1, user_dict, user_num, [1, 479, 71])
+# print(siaaMethod([elem[0] for elem in group], 3, 10, 40, n_dict, df))
+# (group, n_dict) = makeGroup(1, 1, 1, user_dict, user_num, df)
 # print('GRUPPO 3: ' + str(group))
-# print(getKTopMoviesSequential(group, 3, 10, 40, n_dict, df))
+# print(siaaMethod([elem[0] for elem in group], 3, 10, 40, n_dict, df))
 
 
 
