@@ -2,8 +2,6 @@ import multiprocessing
 import pandas as pd
 import numpy as np
 import multiprocessing
-### TO RUN TOP 10 MOVIES, UNCOMMENT IF NAME == MAIN AND COMMENT RUNSIM. CHANGE USER IN MAIN###
-### TO RUN DIFFERENT METHODS, COMMENT IF NAME == MAIN AND UNCOMMENT RUNSIM. CHANGE USER BY PARAM ###
 
 def similarityPearson(df, df1, df2) :
 
@@ -242,9 +240,7 @@ def runSim(userId1, userId2):
 
 # Params: user id, movie id
 #runSim(1, 2)
-# if __name__ == '__main__':
 # df = pd.read_csv('ml-latest-small/ratings.csv')
-
 # res = getTopKMovies(df, 1, 10, 40)
 # print(res[0])
 
