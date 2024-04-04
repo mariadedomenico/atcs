@@ -239,7 +239,11 @@ def runSim(userId1, userId2):
 
 
 # Params: user id, movie id
+# Uncomment this to get similarity between two users using different approches
 #runSim(1, 2)
+    
+# Params: dataset, user id, k-movies, n-neighbors
+# Uncomment this to get k top movies for user 1
 # df = pd.read_csv('ml-latest-small/ratings.csv')
 # res = getTopKMovies(df, 1, 10, 40)
 # print(res[0])
