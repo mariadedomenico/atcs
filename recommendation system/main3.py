@@ -64,7 +64,7 @@ def weightedAvgMethod(chunk, group, movie, pred_dict, neighbors, alfa) :
     res = (1-alfa)*main2.weightedAverageMethod(chunk, group, movie, pred_dict, neighbors)
     return res
 
-def getKTopMovies(group, n_iter, k, n, neighbors_group, method=hybridMethod):
+def getKTopMoviesSequential(group, n_iter, k, n, neighbors_group, df, method=hybridMethod):
 
     total_rows = sum(1 for line in open('ml-latest-small/ratings.csv')) - 1  
     chunk_size = total_rows // n_iter
@@ -88,7 +88,7 @@ def getKTopMovies(group, n_iter, k, n, neighbors_group, method=hybridMethod):
         for member in group:
             movies_dict = {}
             neighbor_chunk = cleanNeighbor(result, neighbors_group[member])
-            movies_member = getKMoviesGroup(result, member, k, n, main.similarityPearson, neighbor_chunk)
+            movies_member = getKMoviesGroup(df, member, k, n, main.similarityPearson, neighbor_chunk)
 
             for (movie, pred) in movies_member[0]:
                 movies_dict[movie] = pred
@@ -98,10 +98,10 @@ def getKTopMovies(group, n_iter, k, n, neighbors_group, method=hybridMethod):
             movies_list.update([x[0] for x in movies_member[0]])
 
 
-        neighbors = main2.getNeighborsPerMovie(movies_list, n_dict, movies_member[2], result, n)
+        neighbors = main2.getNeighborsPerMovie(movies_list, n_dict, movies_member[2], df, n)
         pred_list = []
         for movie in movies_list:
-            pred = method(result, group, movie, pred_dict, neighbors, alfa)
+            pred = method(df, group, movie, pred_dict, neighbors, alfa)
             pred_list.append((movie, pred))
 
         pred_list.sort(key=lambda x: x[1], reverse=True)
@@ -205,8 +205,7 @@ def getDisimilarUsers(k, neighbor):
 def makeGroup(userId, sim, dis, user_dict, num):
 
     group = [(userId, 1)] + getSimilarUsers(sim, user_dict[userId]) + getDisimilarUsers(dis, user_dict[userId])
-
-    for (member, _) in group:
+    for member in group:
         if member not in user_dict.keys():
             user_dict.update(getNeighborsDict(member, df, num))
         
@@ -227,6 +226,17 @@ print(siaaMethod([elem[0] for elem in group], 3, 10, 40, n_dict, df))
 (group, n_dict) = makeGroup(1, 1, 1, user_dict, user_num)
 print('GRUPPO 3: ' + str(group))
 print(siaaMethod([elem[0] for elem in group], 3, 10, 40, n_dict, df))
+
+# (group, n_dict) = makeGroup(1, 0, 2, user_dict, user_num, [1, 236, 44])
+# print('GRUPPO 1: ' + str(group))
+# print(getKTopMoviesSequential(group, 3, 10, 40, n_dict, df))
+# (group, n_dict) = makeGroup(1, 0, 2, user_dict, user_num, [1, 252, 71])
+# print('GRUPPO 2: ' + str(group))
+# print(getKTopMoviesSequential(group, 3, 10, 40, n_dict, df))
+# (group, n_dict) = makeGroup(1, 1, 1, user_dict, user_num, [1, 479, 71])
+# print('GRUPPO 3: ' + str(group))
+# print(getKTopMoviesSequential(group, 3, 10, 40, n_dict, df))
+
 
 
 

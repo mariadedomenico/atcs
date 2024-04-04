@@ -111,7 +111,7 @@ def makeMovieDict(df, topUsers, movies, k) :
 
     return movies_dict
     
-def getTopKMovies(df, userId, k, n, method) :
+def getTopKMovies(df, userId, k, n, method=similarityPearson) :
 
     # df = pd.read_csv('ml-latest-small/ratings.csv')
 
@@ -243,7 +243,9 @@ def runSim(userId1, userId2):
 # Params: user id, movie id
 #runSim(1, 2)
 # if __name__ == '__main__':
-# res = getTopKMovies(1, 10, 40)
+# df = pd.read_csv('ml-latest-small/ratings.csv')
+
+# res = getTopKMovies(df, 1, 10, 40)
 # print(res[0])
 
 
