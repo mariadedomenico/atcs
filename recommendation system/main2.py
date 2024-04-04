@@ -4,8 +4,6 @@ import multiprocessing
 from functools import reduce
 
 from main import getTopKMovies, getTopKUsers, prediction, similarityPearson
-### TO RUN TOP 10 MOVIES, UNCOMMENT IF NAME == MAIN AND COMMENT RUNMETHODS. CHANGE GROUP IN MAIN###
-### TO RUN DIFFERENT METHODS, COMMENT IF NAME == MAIN AND UNCOMMENT RUNMETHODS. CHANGE GROUP BY PARAM ###
   
 def countDisagreements(df, group, movie, pred_dict, n_dict):
     # df = pd.read_csv('ml-latest-small/ratings.csv')
@@ -75,6 +73,7 @@ def leastMethod(group, movie):
         ratings.append(round(rating,2))
     return round(min(ratings), 2)
 
+# get average prediction and least prediction all at once
 def avgAndLeastMethod(df, group, movie, pred_dict, n_dict):
     ratings = []
     for member in group:
@@ -89,6 +88,7 @@ def avgAndLeastMethod(df, group, movie, pred_dict, n_dict):
     avg = ratings_sum / len(ratings)
     return (round(avg,2), round(least, 2))
 
+# get k neighbors that have rated the specific movies 
 def getNeighborsPerMovie(movies, n_dict, topUsers, df, k):
 
     new_dict = {}
@@ -112,16 +112,12 @@ def getNeighborsPerMovie(movies, n_dict, topUsers, df, k):
     return new_dict
 
 def getTopKMoviesGroup(group, df, k, n) :
-    print("sono qui")
-    # df = pd.read_csv('ml-latest-small/ratings.csv')
-
     movies_list = set()
     pred_dict = {}
     n_dict = {}
 
     movies_member = None
     for member in group:
-        print("for 1")
         movies_dict = {}
         movies_member = getTopKMovies(df, member, k, n, similarityPearson)
 
@@ -132,7 +128,6 @@ def getTopKMoviesGroup(group, df, k, n) :
         n_dict[member] = movies_member[1]
         movies_list.update([x[0] for x in movies_member[0]])
 
-    print("sono qua")
     predLeast_list = []
     predAvg_list = []
 
@@ -156,10 +151,11 @@ def runMethods(group, movie):
     print(countDisagreements(group, movie))
 
 # Params: group, movie id
+# Uncomment this to get group prediction for specific item with different approches
 # runMethods([1, 18, 23], 10)
 
-
-
+# Params: group, dataset, k-movies, n-neighbors
+# Uncomment this to get top k movies for group of three members
 # df = pd.read_csv('ml-latest-small/ratings.csv')
 # print(getTopKMoviesGroup([1, 4, 9], df, 10, 40))
 
